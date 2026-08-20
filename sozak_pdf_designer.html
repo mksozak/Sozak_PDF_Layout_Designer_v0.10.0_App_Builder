@@ -1,0 +1,1598 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sozak PDF Layout Designer v0.10.0</title>
+<style>
+:root{
+  --bg:#efefed; --panel:#fafaf8; --paper:#fff; --ink:#30302e; --muted:#777;
+  --line:#d8d8d3; --accent:#c65b47; --accent-soft:#fff0ec; --ok:#327646;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.app{display:grid;grid-template-columns:455px minmax(700px,1fr);min-height:100vh}
+.controls{height:100vh;overflow:auto;background:var(--panel);border-right:1px solid var(--line);padding:16px 18px 40px}
+.preview-wrap{height:100vh;overflow:auto;padding:22px 28px}
+h1{font-size:19px;margin:0}.sub{font-size:11px;color:var(--muted);margin:5px 0 12px}
+
+details.panel{border:1px solid var(--line);border-radius:9px;background:#fff;margin:8px 0;overflow:hidden}
+details.panel>summary{list-style:none;cursor:pointer;padding:10px 11px;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:space-between}
+details.panel>summary::-webkit-details-marker{display:none}
+details.panel>summary::after{content:"▸";color:#888;font-size:11px}
+details.panel[open]>summary::after{content:"▾"}
+details.panel .inside{border-top:1px solid #ecece8;padding:9px 11px 11px}
+details.panel.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+details.panel.selected>summary{background:var(--accent-soft);color:#9c3e2f}
+details.panel.selected input[type=range]{accent-color:var(--accent)}
+details.page{margin-top:0}
+details.page>summary{font-size:12.5px}
+
+.ctrl{display:grid;grid-template-columns:108px 1fr 58px;gap:7px;align-items:center;margin:6px 0}
+.ctrl label,.row label,.fileline label{font-size:11px;color:#555}
+.ctrl input[type=range]{width:100%;accent-color:#777}
+input[type=text],input[type=number],textarea,select,input[type=color]{border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+input[type=text],select{width:100%;padding:6px 7px;font-size:11px}
+input[type=number]{width:58px;padding:3px 4px}
+textarea{width:100%;min-height:58px;padding:7px;font-size:11px;resize:vertical}
+input[type=color]{width:42px;height:28px;padding:2px}
+.row{display:grid;grid-template-columns:108px 1fr;gap:7px;align-items:center;margin:6px 0}
+.row.two{grid-template-columns:108px 1fr 80px}
+.check{display:flex;align-items:center;gap:7px;font-size:11px;margin:7px 0}
+.note{font-size:10px;line-height:1.45;color:#888;margin:6px 0}
+.fileline{display:grid;grid-template-columns:72px 1fr 52px;gap:6px;align-items:center;margin:6px 0}
+button{border:1px solid #cecec9;background:#fff;border-radius:7px;padding:7px 8px;cursor:pointer;font-weight:650}
+button:hover{filter:brightness(.97)}
+button.primary{background:#30312e;color:#fff;border-color:#30312e}
+button.final{background:var(--accent);color:#fff;border-color:var(--accent)}
+.actions{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:8px}
+.logo-buttons{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:7px 0}
+.logo-buttons button.active{background:#30312e;color:#fff;border-color:#30312e}
+.swatch{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;border:1px solid rgba(0,0,0,.15)}
+.summary-left{display:flex;align-items:center;min-width:0}
+.summary-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vis-toggle{width:18px;height:18px;min-width:18px;border:0;background:transparent!important;padding:0;margin:0 7px 0 0;border-radius:50%;font-size:13px;line-height:18px;color:#73736f;box-shadow:none!important}
+.vis-toggle.off{color:#b8b8b4}
+.vis-toggle:hover{color:var(--accent);filter:none}
+.panel-tools{display:flex;justify-content:flex-end;margin:0 0 6px}
+.panel-tools button{padding:4px 7px;font-size:10px;color:#666;background:#f8f8f5}
+.quick-align{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:7px 0}
+.quick-align button{padding:5px 4px;font-size:10px}
+.preview-actions{display:flex;align-items:center;gap:8px}
+.coffee-btn{font-size:10px;padding:6px 9px;white-space:nowrap;background:#fffaf2}
+.bounds-warning{display:none;font-size:10px;color:#a24532;text-align:center;margin:-2px 0 8px;font-weight:700}
+.status{position:sticky;bottom:0;margin:14px -18px -40px;padding:9px 18px;background:rgba(250,250,248,.97);border-top:1px solid var(--line);font-size:11px;color:#555;min-height:36px}
+.status.ok{color:var(--ok)}.status.err{color:#b13a32;font-weight:700}
+.toast{position:fixed;z-index:9999;left:50%;top:22px;transform:translateX(-50%);max-width:700px;width:calc(100% - 44px);padding:11px 14px;border-radius:9px;box-shadow:0 8px 30px rgba(0,0,0,.2);font-size:12px;line-height:1.45;display:none;white-space:pre-wrap}
+.toast.ok{display:block;background:#eef8f0;color:#285f37;border:1px solid #b9d8bf}
+.toast.err{display:block;background:#fff0ee;color:#8e3028;border:1px solid #e2b5ae}
+
+.preview-head{display:flex;justify-content:space-between;align-items:end;margin-bottom:12px}
+.preview-head b{font-size:13px}.preview-head span{font-size:11px;color:#888}
+.layout-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;margin:0 0 8px;border:1px solid var(--line);border-radius:9px;background:#fff}
+.layout-bar .label{font-size:11px;font-weight:800;color:#555}
+.segmented{display:flex;gap:4px;background:#efefec;padding:3px;border-radius:8px}
+.segmented button{border:0;background:transparent;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:700;color:#666;cursor:pointer}
+.segmented button.active{background:#fff;color:#9c3e2f;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.preview-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.preview-title{display:flex;flex-direction:column;gap:3px}
+.preview-title b{font-size:13px}
+.preview-title span{font-size:10px;color:#777}
+.preview-tabs{display:flex;gap:4px;background:#e8e8e5;padding:3px;border-radius:8px}
+.preview-tabs button{border:0;background:transparent;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:700;color:#666;cursor:pointer}
+.preview-tabs button.active{background:#fff;color:#9c3e2f;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.preview-tabs button:disabled{opacity:.35;cursor:not-allowed}
+.preview-meta{font-size:10px;color:#777;margin:-3px 0 8px;text-align:center}
+.stage{display:flex;justify-content:center}
+.sheet{position:relative;width:630px;height:891px;background:var(--paper);box-shadow:0 9px 28px rgba(0,0,0,.14);overflow:hidden}
+.sheet *{position:absolute}
+.pdf-bg{inset:0;width:100%;height:100%;object-fit:fill;z-index:0;display:none;pointer-events:none;background:#fff}
+
+.margin-guide{position:absolute!important;z-index:3;pointer-events:none;display:none;opacity:.72}
+.margin-guide.v{top:0;bottom:0;width:0;border-left:1px dashed rgba(110,110,110,.5)}
+.margin-guide.h{left:0;right:0;height:0;border-top:1px dashed rgba(110,110,110,.5)}
+.margin-guide-label{position:absolute!important;z-index:3;pointer-events:none;display:none;
+  font-size:9px;color:#888;background:rgba(255,255,255,.78);padding:1px 4px;border-radius:4px}
+.smart-guide{position:absolute!important;z-index:4;pointer-events:none;display:none;opacity:.78}
+.smart-guide.v{top:0;bottom:0;width:0;border-left:1px dashed rgba(198,91,71,.78)}
+.smart-guide.h{left:0;right:0;height:0;border-top:1px dashed rgba(198,91,71,.78)}
+.smart-guide.match.v{border-left:1.5px solid var(--accent);opacity:1}
+.smart-guide.match.h{border-top:1.5px solid var(--accent);opacity:1}
+.smart-guide-label{position:absolute!important;z-index:5;pointer-events:none;display:none;font-size:9px;color:#8e3b2d;background:rgba(255,247,244,.94);border:1px solid rgba(198,91,71,.25);padding:1px 4px;border-radius:4px}
+.sheet>.bodyhint{z-index:1}
+.sheet>.logo,.sheet>.text-selectable,.sheet>.object-selectable,.sheet>.badge{z-index:2}
+.logo{object-fit:contain}
+.text-selectable{cursor:text;border-radius:4px;transition:.12s background,.12s box-shadow;min-width:12px;min-height:12px;outline:none}
+.text-selectable:hover{background:rgba(198,91,71,.045)}
+.text-selectable.selected{outline:none;background:rgba(198,91,71,.14);box-shadow:none}
+.text-selectable[contenteditable=true]:focus{outline:none;background:rgba(198,91,71,.11);box-shadow:none}
+.object-selectable{cursor:pointer;transition:.12s filter,.12s box-shadow,.12s background;outline:none}
+.object-selectable.selected{outline:none}
+.logo.object-selectable.selected{filter:drop-shadow(0 0 8px rgba(198,91,71,.62))}
+.line-selectable{cursor:pointer}
+.line-selectable.selected{filter:drop-shadow(0 0 5px rgba(198,91,71,.85));background:var(--accent)!important}
+.horizontal-line-selectable::after{content:"";position:absolute;left:0;right:0;top:-6px;bottom:-6px;background:transparent}
+.vertical-line-selectable::after{content:"";position:absolute;top:0;bottom:0;left:-6px;right:-6px;background:transparent}
+.header-line{white-space:pre-wrap}
+.divider{height:1px;background:#d1d1cf}
+.rrule{width:1px;background:#555}
+.bodyhint h1,.bodyhint h2,.bodyhint h3,.bodyhint p,.bodyhint ul,.bodyhint ol,.bodyhint li,.bodyhint blockquote,.bodyhint table,.bodyhint thead,.bodyhint tbody,.bodyhint tr,.bodyhint th,.bodyhint td,.bodyhint .bodyline{position:static}
+.bodyhint h1{font-size:18px;margin:0 0 8px;color:#2e2e2c}.bodyhint h2{font-size:13px;margin:0 0 10px;color:#3e3e3b}
+.bodyhint h3{font-size:11px;margin:12px 0 6px}
+.bodyhint p,.bodyhint li{font-size:9.5px;line-height:1.55;color:#555}
+.bodyhint p{margin:0 0 8px}.bodyhint ul,.bodyhint ol{margin:6px 0 10px;padding-left:18px}
+.bodyhint blockquote{font-size:9px;line-height:1.45;color:#666;border-left:3px solid var(--accent);margin:10px 0;padding:5px 9px;background:#faf7f5}
+.bodyhint table{border-collapse:collapse;width:72%;font-size:8px;margin-top:10px}.bodyhint th,.bodyhint td{border:1px solid #d6d6d2;padding:4px 5px;text-align:left}.bodyhint th{background:#f5f5f2}
+.bodyline{height:1px;background:#dededb;margin:12px 0}
+.footerline{height:1px;background:#d2d2d0}
+.pageno{white-space:nowrap;padding:2px 4px;border-radius:4px}
+.pageno.ghost{opacity:.48;border:1px dashed #888;background:#fafafa}
+.badge{position:absolute!important;right:8px;bottom:6px;font-size:9px;color:#aaa}
+.coordread{font-size:10px;color:#777;background:#f2f2ef;border-radius:5px;padding:5px 7px;margin-top:6px}
+.tip{font-size:10px;color:#777;margin-top:5px}
+@media(max-width:1050px){
+  .app{grid-template-columns:1fr}.controls{height:auto;border-right:0;border-bottom:1px solid var(--line)}.preview-wrap{height:auto}
+}
+</style>
+</head>
+<body>
+<div id="toast" class="toast"></div>
+<div class="app">
+<aside class="controls">
+  <h1>Sozak PDF Layout Designer</h1>
+  <div class="sub">v0.10.0 · Smart Guides · Element Toggle · Dummy PDF · Footer X / Width · YAML</div>
+
+  <div class="layout-bar">
+    <span class="label">HEADER LAYOUT</span>
+    <div class="segmented">
+      <button id="layoutHorizontal" type="button">가로형 Horizontal</button>
+      <button id="layoutVertical" type="button">세로형 Vertical</button>
+    </div>
+  </div>
+
+  <details class="panel page" open>
+    <summary><span>Page Margins · 전체 페이지 여백</span></summary>
+    <div class="inside">
+      <div class="ctrl"><label>Left</label><input data-path="page.left" type="range" min="5" max="40" step=".5"><input data-num="page.left" type="number"></div>
+      <div class="ctrl"><label>Right</label><input data-path="page.right" type="range" min="5" max="40" step=".5"><input data-num="page.right" type="number"></div>
+      <div class="ctrl"><label>Bottom</label><input data-path="page.bottom" type="range" min="10" max="45" step=".5"><input data-num="page.bottom" type="number"></div>
+      <div class="ctrl"><label>1페이지 Top</label><input data-path="page.first_top" type="range" min="30" max="180" step=".5"><input data-num="page.first_top" type="number"></div>
+      <div class="ctrl"><label>2페이지+ Top</label><input data-path="page.other_top" type="range" min="5" max="45" step=".5"><input data-num="page.other_top" type="number"></div>
+      <label class="check"><input id="showMarginGuides" type="checkbox" checked> 미리보기에서 여백 가이드 표시</label>
+      <label class="check"><input id="showSmartGuides" type="checkbox" checked> Smart Guides · 이동 중 정렬 안내선</label>
+      <label class="check"><input id="enableSnap" type="checkbox" checked> Snap · 정렬점에 살짝 맞추기</label>
+      <div class="note">좌·우·하단은 공통값입니다. 1페이지 Top은 현재 Header Layout의 값, 2페이지는 2페이지+ Top 값을 사용합니다. 점선은 미리보기 전용이며 최종 PDF에는 출력되지 않습니다.</div>
+    </div>
+  </details>
+
+  <details class="panel" open>
+    <summary><span>PDF / Preset</span></summary>
+    <div class="inside">
+      <div class="fileline"><label>Body PDF</label><input id="bodyPdf" type="text"><button data-pick="pdf">선택</button></div>
+      <div class="fileline"><label>YAML / MD</label><input id="metadataPath" type="text"><button id="pickMetadata">선택·적용</button></div>
+      <div class="note" id="metadataStatus">Body PDF와 같은 이름의 .md/.yaml/.yml 파일이 있으면 YAML 정보를 자동으로 찾습니다.</div>
+      <div class="fileline"><label>Last Output</label><input id="outputPdf" type="text" readonly><button id="clearOutput" type="button">지우기</button></div>
+      <div class="fileline"><label>Print CSS</label><input id="cssPath" type="text"><button data-pick="css">선택</button></div>
+      <div class="row"><label>Preset 이름</label><input id="presetName" type="text"></div>
+      <div class="actions">
+        <button id="loadPreset">프리셋 불러오기</button>
+        <button id="savePreset">프리셋 저장</button>
+        <button id="saveCss">페이지 여백 CSS 반영</button>
+        <button id="generate" class="final">최종 PDF 내보내기…</button>
+      </div>
+    </div>
+  </details>
+
+  <details class="panel object-editor" id="logoPanel" data-object-editor="logo">
+    <summary><span class="summary-left"><button type="button" class="vis-toggle" data-vis-key="logo" aria-label="Logo 표시 전환">●</button><span>Logo · 그림</span></span></summary>
+    <div class="inside">
+      <div class="logo-buttons">
+        <button id="logoLong">Howon · Long</button>
+        <button id="logoCircle">Howon · Circle</button>
+        <button id="logoWkuLand2">원광대 · 가로 2</button>
+        <button id="logoWkuLand1">원광대 · 가로 1</button>
+        <button id="logoWkuCircle">원광대 · 원형</button>
+        <button id="logoTlf">TLF · Mark</button>
+        <button id="logoTlfText">TLF · Wide</button>
+        <button id="logoCustom">로고 파일 바꾸기…</button>
+      </div>
+      <div class="note" id="logoFolderNote">로고 파일 바꾸기를 누르면 앱의 Built-in Logos 폴더가 먼저 열립니다.</div>
+      <div class="row"><label>Logo path</label><input data-path="header.logo.path" type="text"></div>
+      <div class="ctrl"><label>X</label><input data-path="header.logo.x" type="range" min="0" max="90" step=".5"><input data-num="header.logo.x" type="number"></div>
+      <div class="ctrl"><label>Y</label><input data-path="header.logo.y" type="range" min="0" max="60" step=".5"><input data-num="header.logo.y" type="number"></div>
+      <div class="ctrl"><label>Width</label><input data-path="header.logo.width" type="range" min="10" max="80" step=".5"><input data-num="header.logo.width" type="number"></div>
+      <label class="check"><input data-bool="header.info.auto_after_logo" type="checkbox"> 로고 폭에 따라 텍스트 블록 자동 이동</label>
+      <div class="ctrl"><label>Text gap</label><input data-path="header.info.gap" type="range" min="0" max="35" step=".5"><input data-num="header.info.gap" type="number"></div>
+    </div>
+  </details>
+
+  <details class="panel object-editor" id="dividerPanel" data-object-editor="divider">
+    <summary><span class="summary-left"><button type="button" class="vis-toggle" data-vis-key="divider" aria-label="Header Divider 표시 전환">●</button><span>Header Divider · 위 가로선</span></span></summary>
+    <div class="inside">
+      <div class="ctrl"><label>X start</label><input data-path="header.divider.x1" type="range" min="0" max="100" step=".5"><input data-num="header.divider.x1" type="number"></div>
+      <div class="ctrl"><label>X end</label><input data-path="header.divider.x2" type="range" min="100" max="210" step=".5"><input data-num="header.divider.x2" type="number"></div>
+      <div class="ctrl"><label>Y</label><input data-path="header.divider.y" type="range" min="15" max="100" step=".5"><input data-num="header.divider.y" type="number"></div>
+      <div class="ctrl"><label>Thickness</label><input data-path="header.divider.width" type="range" min=".1" max="2" step=".05"><input data-num="header.divider.width" type="number"></div>
+      <div class="row"><label>Color</label><input data-path="header.divider.color" type="color"></div>
+    </div>
+  </details>
+
+  <details class="panel object-editor" id="rightRulePanel" data-object-editor="rightRule">
+    <summary><span class="summary-left"><button type="button" class="vis-toggle" data-vis-key="rightRule" aria-label="Right Rule 표시 전환">●</button><span>Right Rule · 우측 세로선</span></span></summary>
+    <div class="inside">
+      <div class="ctrl"><label>X</label><input data-path="header.right_rule.x" type="range" min="0" max="210" step=".5"><input data-num="header.right_rule.x" type="number"></div>
+      <div class="ctrl"><label>Y start</label><input data-path="header.right_rule.y1" type="range" min="0" max="150" step=".5"><input data-num="header.right_rule.y1" type="number"></div>
+      <div class="ctrl"><label>Y end</label><input data-path="header.right_rule.y2" type="range" min="10" max="250" step=".5"><input data-num="header.right_rule.y2" type="number"></div>
+      <div class="ctrl"><label>Thickness</label><input data-path="header.right_rule.width" type="range" min=".1" max="2" step=".05"><input data-num="header.right_rule.width" type="number"></div>
+      <div class="row"><label>Color</label><input data-path="header.right_rule.color" type="color"></div>
+    </div>
+  </details>
+
+  <div id="textEditors"></div>
+
+  <details class="panel object-editor" id="footerLinePanel" data-object-editor="footerLine">
+    <summary><span class="summary-left"><button type="button" class="vis-toggle" data-vis-key="footerLine" aria-label="Footer Line 표시 전환">●</button><span>Footer Line · 아래 가로선</span></span></summary>
+    <div class="inside">
+      <div class="ctrl"><label>Y</label><input data-path="footer.line.y" type="range" min="245" max="294" step=".5"><input data-num="footer.line.y" type="number"></div>
+      <div class="ctrl"><label>Length</label><input data-path="footer.line.length" type="range" min="20" max="190" step="1"><input data-num="footer.line.length" type="number"></div>
+      <div class="ctrl"><label>Thickness</label><input data-path="footer.line.width" type="range" min=".1" max="2" step=".05"><input data-num="footer.line.width" type="number"></div>
+      <div class="row"><label>Color</label><input data-path="footer.line.color" type="color"></div>
+    </div>
+  </details>
+
+  <details class="panel" id="presetFontPanel">
+    <summary><span>Preset Font Files · 선택사항</span></summary>
+    <div class="inside">
+      <div class="note">텍스트의 Font에서 <b>Preset font</b>를 선택할 때만 사용됩니다. Helvetica / Times / Courier는 파일 지정이 필요 없습니다.</div>
+      <div class="fileline"><label>Regular</label><input data-path="fonts.regular" type="text"><button data-pick="font-regular">선택</button></div>
+      <div class="fileline"><label>Bold</label><input data-path="fonts.bold" type="text"><button data-pick="font-bold">선택</button></div>
+    </div>
+  </details>
+
+  <div id="status" class="status">준비 중...</div>
+</aside>
+
+<main class="preview-wrap">
+  <div class="preview-head">
+    <div class="preview-title">
+      <b id="previewTitle">1페이지 미리보기</b>
+      <span>PDF 본문은 배경으로 표시되고, 머리말·꼬리말 요소만 편집합니다.</span>
+    </div>
+    <div class="preview-actions">
+      <button id="coffeeBtn" class="coffee-btn" type="button">☕ 개발자에게 커피 사기</button>
+      <div class="preview-tabs">
+        <button id="previewPage1" type="button" class="active">1페이지</button>
+        <button id="previewPage2" type="button">2페이지</button>
+      </div>
+    </div>
+  </div>
+  <div id="previewMeta" class="preview-meta">Body PDF가 없으면 2페이지 더미 문서가 표시되며 그대로 테스트 PDF로 내보낼 수 있습니다.</div>
+  <div id="boundsWarning" class="bounds-warning"></div>
+  <div class="stage">
+    <div class="sheet" id="sheet">
+      <img id="pvPdfBg" class="pdf-bg" alt="Body PDF preview">
+
+      <div id="guideLeft" class="margin-guide v"></div>
+      <div id="guideRight" class="margin-guide v"></div>
+      <div id="guideTop" class="margin-guide h"></div>
+      <div id="guideBottom" class="margin-guide h"></div>
+      <div id="guideTopLabel" class="margin-guide-label"></div>
+
+      <div id="smartV1" class="smart-guide v"></div>
+      <div id="smartV2" class="smart-guide v"></div>
+      <div id="smartV3" class="smart-guide v"></div>
+      <div id="smartVMatch" class="smart-guide v match"></div>
+      <div id="smartH1" class="smart-guide h"></div>
+      <div id="smartHMatch" class="smart-guide h match"></div>
+      <div id="smartGuideLabel" class="smart-guide-label"></div>
+
+      <img id="pvLogo" class="logo object-selectable" data-object="logo" alt="logo">
+      <div id="pvHeader1" class="header-line text-selectable" contenteditable="true" spellcheck="false"></div>
+      <div id="pvHeader2" class="header-line text-selectable" contenteditable="true" spellcheck="false"></div>
+      <div id="pvInstructor1" class="header-line text-selectable" contenteditable="true" spellcheck="false"></div>
+      <div id="pvInstructor2" class="header-line text-selectable" contenteditable="true" spellcheck="false"></div>
+      <div id="pvDivider" class="divider object-selectable line-selectable horizontal-line-selectable" data-object="divider"></div>
+      <div id="pvSeries" class="text-selectable" contenteditable="true" spellcheck="false"></div>
+      <div id="pvRule" class="rrule object-selectable line-selectable vertical-line-selectable" data-object="rightRule"></div>
+
+      <div id="pvBody" class="bodyhint"></div>
+
+      <div id="pvFooterLine" class="footerline object-selectable line-selectable horizontal-line-selectable" data-object="footerLine"></div>
+      <div id="pvFooter1" class="text-selectable" contenteditable="true" spellcheck="false"></div>
+      <div id="pvFooter2" class="text-selectable" contenteditable="true" spellcheck="false"></div>
+      <div id="pvPageNo" class="pageno text-selectable"></div>
+      <div class="badge">A4</div>
+    </div>
+  </div>
+  <div class="tip">Body PDF가 없으면 2페이지 더미 문서로 레이아웃을 검토하고 테스트 PDF를 내보낼 수 있습니다. 실제 Body PDF의 여백 변경은 Typora 재출력 후 반영됩니다.</div>
+</main>
+</div>
+
+<script>
+const A4W=210, PXW=630, SCALE=PXW/A4W;
+const q=s=>document.querySelector(s), qa=s=>[...document.querySelectorAll(s)];
+const mm=v=>Number(v||0)*SCALE;
+let preset={};
+let defaults={
+  long_logo:"@designer/assets/uni_logo_long.png",
+  circle_logo:"@designer/assets/uni_logo_circle.png",
+  builtin_logos:{},
+  builtin_logo_folder:""
+};
+let selectedKey=null;
+let previewPage=1;
+let pdfPageCount=0;
+let bodyPdfPath="";
+let previewNonce=0;
+let previewPrefs={showMarginGuides:true,showSmartGuides:true,snap:true};
+let smartGuideTimer=null;
+
+function get(path){
+  return path.split(".").reduce((o,k)=>o==null?undefined:o[k],preset);
+}
+function set(path,value){
+  const parts=path.split("."); let o=preset;
+  for(const k of parts.slice(0,-1)){ if(typeof o[k]!=="object"||o[k]===null)o[k]={}; o=o[k]; }
+  o[parts.at(-1)]=value;
+}
+function normalizePreset(){
+  // Backward-compatible footer migration.
+  const t=preset?.footer?.text;
+  if(t){
+    const legacyY=Number(t.y??282);
+    const legacyGap=Number(t.line_gap??4.2);
+    const legacyX=Number(t.x??20);
+    const legacyW=Number(t.width??170);
+    if(t.line1_y===undefined)t.line1_y=legacyY;
+    if(t.line2_y===undefined)t.line2_y=legacyY+legacyGap;
+    if(t.line1_x===undefined)t.line1_x=legacyX;
+    if(t.line2_x===undefined)t.line2_x=legacyX;
+    if(t.line1_width===undefined)t.line1_width=legacyW;
+    if(t.line2_width===undefined)t.line2_width=legacyW;
+    if(t.line1_enabled===undefined)t.line1_enabled=true;
+    if(t.line2_enabled===undefined)t.line2_enabled=true;
+    t.y=t.line1_y;
+    t.line_gap=Number(t.line2_y)-Number(t.line1_y);
+  }
+  const lines=preset?.header?.info?.lines;
+  if(Array.isArray(lines))lines.slice(0,3).forEach(l=>{if(l.enabled===undefined)l.enabled=true;});
+  if(preset?.metadata){
+    if(preset.metadata.week_version===undefined && preset.metadata.week!==undefined){
+      const old=cleanMetadataString(preset.metadata.week);
+      preset.metadata.week_version=old && !/^(week|version|ver\.?|v\d)/i.test(old)?`WEEK ${old}`:old;
+    }
+    delete preset.metadata.week;
+  }
+  normalizeLayoutPreset();
+  normalizeLineGeometry();
+}
+
+function normalizeLineGeometry(){
+  const info=preset?.header?.info;
+  if(!info || !Array.isArray(info.lines))return;
+  const fallbackX=Number(info.x??72);
+  const fallbackW=Number(info.width??115);
+  info.lines.slice(0,3).forEach(l=>{
+    if(l.x===undefined)l.x=fallbackX;
+    if(l.width===undefined)l.width=fallbackW;
+  });
+}
+
+function activeLayoutSnapshot(){
+  const h=preset.header, info=h.info, lines=info.lines;
+  return {
+    first_top:Number(preset.page.first_top??68),
+    logo:{
+      enabled:h.logo.enabled!==false,
+      x:Number(h.logo.x??18),y:Number(h.logo.y??14),width:Number(h.logo.width??40)
+    },
+    info:{
+      auto_after_logo:info.auto_after_logo!==false,
+      gap:Number(info.gap??14),x:Number(info.x??72),width:Number(info.width??115),
+      line_y:[
+        Number(lines?.[0]?.y??15),
+        Number(lines?.[1]?.y??22),
+        Number(lines?.[2]?.y??34)
+      ],
+      line_x:[
+        Number(lines?.[0]?.x??info.x??72),
+        Number(lines?.[1]?.x??info.x??72),
+        Number(lines?.[2]?.x??info.x??72)
+      ],
+      line_width:[
+        Number(lines?.[0]?.width??info.width??115),
+        Number(lines?.[1]?.width??info.width??115),
+        Number(lines?.[2]?.width??info.width??115)
+      ],
+      line_enabled:[
+        lines?.[0]?.enabled!==false,
+        lines?.[1]?.enabled!==false,
+        lines?.[2]?.enabled!==false
+      ],
+      instructor_gap:Number(lines?.[2]?.line_gap??4.4)
+    },
+    divider:{
+      enabled:h.divider.enabled!==false,
+      x1:Number(h.divider.x1??15),x2:Number(h.divider.x2??195),y:Number(h.divider.y??44)
+    },
+    series:{
+      enabled:h.series.enabled!==false,
+      x:Number(h.series.x??20),y:Number(h.series.y??52),width:Number(h.series.width??170)
+    },
+    right_rule:{
+      enabled:!!h.right_rule.enabled,
+      x:Number(h.right_rule.x??195),y1:Number(h.right_rule.y1??9),y2:Number(h.right_rule.y2??122)
+    }
+  };
+}
+
+function defaultHorizontalLayout(){
+  return {
+    first_top:68,
+    logo:{enabled:true,x:18,y:14,width:40},
+    info:{auto_after_logo:true,gap:14,x:72,width:115,line_y:[15,22,34],line_x:[72,72,72],line_width:[115,115,115],line_enabled:[true,true,true],instructor_gap:4.4},
+    divider:{enabled:true,x1:15,x2:195,y:44},
+    series:{enabled:true,x:20,y:52,width:170},
+    right_rule:{enabled:false,x:195,y1:9,y2:122}
+  };
+}
+
+function defaultVerticalLayout(){
+  return {
+    first_top:112,
+    logo:{enabled:true,x:18,y:18,width:48},
+    info:{
+      auto_after_logo:false,gap:10,x:18,width:100,
+      line_y:[62,68,78],
+      line_x:[18,18,18],
+      line_width:[100,100,100],
+      line_enabled:[true,true,true],
+      instructor_gap:4.8
+    },
+    divider:{enabled:false,x1:18,x2:195,y:96},
+    series:{enabled:true,x:18,y:102,width:174},
+    right_rule:{enabled:false,x:195,y1:12,y2:120}
+  };
+}
+
+function normalizeLayoutPreset(){
+  if(!preset.header)preset.header={};
+  if(!preset.page)preset.page={};
+  const h=preset.header;
+  if(!h.layout)h.layout="horizontal";
+  if(!h.layouts || typeof h.layouts!=="object")h.layouts={};
+  if(!h.layouts.horizontal)h.layouts.horizontal=activeLayoutSnapshot();
+  if(!h.layouts.vertical)h.layouts.vertical=defaultVerticalLayout();
+  ["horizontal","vertical"].forEach(name=>{
+    const g=h.layouts[name];
+    if(!g || !g.info)return;
+    const gx=Number(g.info.x??72);
+    const gw=Number(g.info.width??115);
+    if(!Array.isArray(g.info.line_x))g.info.line_x=[gx,gx,gx];
+    if(!Array.isArray(g.info.line_width))g.info.line_width=[gw,gw,gw];
+    if(!Array.isArray(g.info.line_enabled))g.info.line_enabled=[true,true,true];
+  });
+  if(!h.layouts[h.layout])h.layout="horizontal";
+}
+
+function captureActiveLayout(){
+  if(!preset?.header)return;
+  normalizeLayoutPreset();
+  preset.header.layouts[preset.header.layout]=activeLayoutSnapshot();
+}
+
+function applyLayoutGeometry(name,doRender=true){
+  normalizeLayoutPreset();
+  const h=preset.header;
+  const g=h.layouts[name];
+  if(!g)return;
+  h.layout=name;
+  preset.page.first_top=Number(g.first_top??preset.page.first_top??68);
+
+  Object.assign(h.logo,{
+    enabled:g.logo?.enabled!==false,
+    x:Number(g.logo?.x??18),y:Number(g.logo?.y??14),width:Number(g.logo?.width??40)
+  });
+  Object.assign(h.info,{
+    auto_after_logo:g.info?.auto_after_logo!==false,
+    gap:Number(g.info?.gap??14),x:Number(g.info?.x??72),width:Number(g.info?.width??115)
+  });
+
+  const ys=g.info?.line_y||[];
+  const xs=g.info?.line_x||[];
+  const ws=g.info?.line_width||[];
+  const es=g.info?.line_enabled||[];
+  [0,1,2].forEach(i=>{
+    const l=h.info.lines?.[i];
+    if(!l)return;
+    if(ys[i]!==undefined)l.y=Number(ys[i]);
+    l.x=Number(xs[i]??g.info?.x??h.info.x??72);
+    l.width=Number(ws[i]??g.info?.width??h.info.width??115);
+    l.enabled=es[i]===undefined?true:!!es[i];
+  });
+  if(h.info.lines?.[2])h.info.lines[2].line_gap=Number(g.info?.instructor_gap??4.4);
+
+  Object.assign(h.divider,{
+    enabled:g.divider?.enabled!==false,
+    x1:Number(g.divider?.x1??15),x2:Number(g.divider?.x2??195),y:Number(g.divider?.y??44)
+  });
+  Object.assign(h.series,{
+    enabled:g.series?.enabled!==false,
+    x:Number(g.series?.x??20),y:Number(g.series?.y??52),width:Number(g.series?.width??170)
+  });
+  Object.assign(h.right_rule,{
+    enabled:!!g.right_rule?.enabled,
+    x:Number(g.right_rule?.x??195),y1:Number(g.right_rule?.y1??9),y2:Number(g.right_rule?.y2??122)
+  });
+
+  if(doRender)render();
+}
+
+function switchHeaderLayout(name){
+  if(preset.header?.layout===name)return;
+  captureActiveLayout();
+  applyLayoutGeometry(name,false);
+  clearSelection();
+  render();
+  status(name==="vertical"?"세로형 Header Layout으로 전환했습니다.":"가로형 Header Layout으로 전환했습니다.");
+}
+
+function updateLayoutButtons(){
+  const name=preset.header?.layout||"horizontal";
+  q("#layoutHorizontal").classList.toggle("active",name==="horizontal");
+  q("#layoutVertical").classList.toggle("active",name==="vertical");
+}
+
+function line(i){return preset.header.info.lines[i];}
+function instructors(){
+  const l=line(2);
+  if(!Array.isArray(l.instructors)){
+    const parts=String(l.text||"").split(/\r?\n/);
+    l.instructors=[parts[0]||"",parts[1]||""];
+  }
+  while(l.instructors.length<2)l.instructors.push("");
+  l.instructors=l.instructors.slice(0,2);
+  l.text=l.instructors.join("\n"); // legacy compatibility
+  return l.instructors;
+}
+function setInstructor(index,value){
+  const list=instructors();
+  list[index]=value;
+  line(2).instructors=list;
+  line(2).text=list.join("\n");
+}
+
+function cleanMetadataString(value){
+  return value==null?"":String(value).trim();
+}
+
+function formatSeriesFromMetadata(meta){
+  const base=cleanMetadataString(meta.documentation_name);
+  const raw=cleanMetadataString(meta.week_version);
+  let suffix=raw;
+  if(raw && !/^(week|version|ver\.?|v\d)/i.test(raw))suffix=`WEEK ${raw}`;
+  if(base && suffix)return `${base}  ·  ${suffix}`;
+  return base || suffix;
+}
+
+function applyMetadata(meta,path="",showToast=true){
+  if(!meta || typeof meta!=="object")return;
+
+  const present=new Set(Array.isArray(meta._present)?meta._present:[]);
+  const prev=preset.metadata||{};
+  const next={...prev};
+
+  const scalarKeys=["institution","department","course","semester","week_version","date","documentation_name","footer1","footer2"];
+  scalarKeys.forEach(key=>{
+    if(present.has(key))next[key]=cleanMetadataString(meta[key]);
+    else if(next[key]===undefined)next[key]="";
+  });
+
+  if(present.has("instructors")){
+    next.instructors=Array.isArray(meta.instructors)?meta.instructors.map(cleanMetadataString).filter(Boolean):[];
+  }else if(!Array.isArray(next.instructors)){
+    next.instructors=[];
+  }
+  preset.metadata=next;
+
+  // Explicit YAML keys update the corresponding Designer fields.
+  if(present.has("institution")){
+    line(0).text=next.institution;
+  }else if(!line(0).text && present.has("department")){
+    line(0).text=next.department;
+  }
+
+  if(present.has("course")){
+    line(1).text=next.course;
+  }
+
+  if(present.has("instructors")){
+    const importedInstructors=next.instructors.slice(0,2);
+    while(importedInstructors.length<2)importedInstructors.push("");
+    line(2).instructors=importedInstructors;
+    line(2).text=importedInstructors.join("\n");
+  }
+
+  if(present.has("documentation_name") || present.has("week_version")){
+    preset.header.series.text=formatSeriesFromMetadata(next);
+  }
+
+  if(present.has("footer1")){
+    preset.footer.text.line1=next.footer1;
+  }
+  if(present.has("footer2")){
+    preset.footer.text.line2=next.footer2;
+  }
+
+  if(path){
+    q("#metadataPath").value=path;
+    q("#metadataStatus").textContent=`YAML 적용됨 · ${path}`;
+  }else{
+    q("#metadataStatus").textContent="YAML 정보가 Designer 필드에 적용되었습니다.";
+  }
+
+  render();
+  if(showToast)status("YAML 정보를 머리말·꼬리말에 적용했습니다.","ok",true);
+}
+
+async function loadMetadataFile(path,showToast=true){
+  const j=await api("/api/load-metadata",{path});
+  applyMetadata(j.metadata,j.path,showToast);
+  return j;
+}
+
+async function autoFindMetadataForPdf(pdfPath){
+  try{
+    const j=await api("/api/find-sibling-metadata",{body_pdf:pdfPath});
+    if(j.found){
+      applyMetadata(j.metadata,j.path,false);
+      status("Body PDF와 같은 이름의 YAML/Markdown 정보를 자동 적용했습니다.","ok",true);
+      return true;
+    }
+    if(j.warning){
+      q("#metadataStatus").textContent=`자동 발견했지만 YAML을 읽지 못했습니다: ${j.warning}`;
+    }else{
+      q("#metadataStatus").textContent="같은 이름의 YAML/Markdown 파일을 찾지 못했습니다. 필요하면 직접 선택하세요.";
+    }
+  }catch(e){
+    q("#metadataStatus").textContent="YAML 자동 검색 실패: "+e.message;
+  }
+  return false;
+}
+function fontCss(name){
+  const map={
+    helvetica:'Arial, Helvetica, sans-serif',
+    'helvetica-neue':'"Helvetica Neue", Helvetica, Arial, sans-serif',
+    'avenir-next':'"Avenir Next", Avenir, sans-serif',
+    'apple-sd-gothic-neo':'"Apple SD Gothic Neo", sans-serif',
+    applegothic:'AppleGothic, sans-serif',
+    pretendard:'Pretendard, sans-serif',
+    paperlogy:'Paperlogy, sans-serif',
+    'noto-sans-kr':'"Noto Sans KR", sans-serif',
+    'noto-serif-kr':'"Noto Serif KR", serif',
+    roboto:'Roboto, sans-serif',
+    'open-sans':'"Open Sans", sans-serif',
+    montserrat:'Montserrat, sans-serif',
+    'source-sans-3':'"Source Sans 3", "Source Sans Pro", sans-serif',
+    lato:'Lato, sans-serif',
+    times:'"Times New Roman", Times, serif',
+    courier:'"Courier New", Courier, monospace',
+    preset:'-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'
+  };
+  return map[name||"helvetica"]||map.helvetica;
+}
+function status(msg,kind="ok",toast=false){
+  const el=q("#status"); el.textContent=msg||""; el.className="status "+kind;
+  if(toast){
+    const t=q("#toast"); t.textContent=msg; t.className="toast "+kind;
+    setTimeout(()=>{t.className="toast";},3500);
+  }
+}
+async function api(path,payload={}){
+  const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  let j={}; try{j=await r.json();}catch{}
+  if(!r.ok||!j.ok) throw new Error(j.error||`HTTP ${r.status}`);
+  return j;
+}
+function imageUrl(path){return "/api/image?path="+encodeURIComponent(path||"");}
+
+function pdfPreviewUrl(path,page){
+  if(!path)return "";
+  return `/api/pdf-preview?path=${encodeURIComponent(path)}&page=${page}&v=${++previewNonce}`;
+}
+
+async function refreshPdfInfo(path){
+  bodyPdfPath=path||"";
+  if(!bodyPdfPath){
+    pdfPageCount=0;
+    updatePdfBackground();
+    render();
+    return;
+  }
+  try{
+    const j=await api("/api/pdf-info",{body_pdf:bodyPdfPath});
+    pdfPageCount=Number(j.pages||0);
+    if(pdfPageCount===1 && previewPage===2)previewPage=1;
+    updatePdfBackground();
+    render();
+  }catch(e){
+    pdfPageCount=0;
+    updatePdfBackground();
+    status(e.message,"err",true);
+  }
+}
+
+function updatePdfBackground(){
+  const bg=q("#pvPdfBg"),sample=q("#pvBody");
+  if(!bodyPdfPath || (pdfPageCount>0 && previewPage>pdfPageCount)){
+    bg.style.display="none";
+    bg.removeAttribute("src");
+    sample.style.display="block";
+    return;
+  }
+  bg.onload=()=>{bg.style.display="block";sample.style.display="none";};
+  bg.onerror=()=>{bg.style.display="none";sample.style.display="block";};
+  bg.src=pdfPreviewUrl(bodyPdfPath,previewPage);
+}
+
+const dummyPages=[
+  `<h1>Sample Lecture Handout</h1><h2>Coordination and Movement</h2><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer facilisis, nibh in tincidunt feugiat, neque magna consequat sem, at tristique justo sapien at erat.</p><p>This two-page dummy document appears automatically when no Body PDF is selected. It helps verify header, footer, margins and page-number placement.</p><div class="bodyline"></div><h3>Key Points</h3><ul><li>Observe the relationship between task, person and environment.</li><li>Check hierarchy around headings and lists.</li><li>Use Smart Guides to align elements precisely.</li></ul><blockquote>Design first, replace the dummy body later. The layout remains stored in the preset.</blockquote><h3>Quick Review</h3><ol><li>Check hierarchy and white space.</li><li>Inspect alignment guides.</li><li>Confirm final PDF output.</li></ol><table><thead><tr><th>Element</th><th>Review</th></tr></thead><tbody><tr><td>Header</td><td>Position / width / visibility</td></tr><tr><td>Footer</td><td>Margins / alignment / page no.</td></tr><tr><td>Body</td><td>Page 1 and page 2 flow</td></tr></tbody></table>`,
+  `<h1>Sample Lecture Handout - Continued</h1><h2>Review and Application</h2><p>Sed posuere consectetur est at lobortis. Donec ullamcorper nulla non metus auctor fringilla. Vestibulum id ligula porta felis euismod semper.</p><p>Page two begins at the Other Top margin and intentionally omits the first-page header. Footer elements continue on every page so repeated placement can be inspected.</p><div class="bodyline"></div><h3>Page Two Checklist</h3><ul><li>Compare page-one and page-two top margins.</li><li>Confirm footer text remains inside the printable area.</li><li>Export this dummy PDF when the real Body PDF is not ready.</li></ul><blockquote>The dummy PDF is a review artifact, not a replacement for the final Body PDF.</blockquote><h3>Continuation</h3><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent commodo cursus magna, vel scelerisque nisl consectetur et.</p><ol><li>Review the header layout.</li><li>Review footer alignment.</li><li>Load the real Body PDF for final inspection.</li></ol>`
+];
+function renderDummyBody(){
+  const body=q("#pvBody");
+  body.innerHTML=dummyPages[Math.max(0,Math.min(1,previewPage-1))];
+}
+
+function setPreviewPage(page){
+  if(page===2 && bodyPdfPath && pdfPageCount===1)return;
+  previewPage=page;
+  clearSelection();
+  updatePdfBackground();
+  render();
+}
+
+const textDefs=[
+  {key:"header1",label:"기관 / 대학명",kind:"line",index:0,preview:"#pvHeader1",geometry:true},
+  {key:"header2",label:"메인 제목",kind:"line",index:1,preview:"#pvHeader2",geometry:true},
+  {key:"header3",label:"강사 1 / 강사 2",kind:"line",index:2,previews:["#pvInstructor1","#pvInstructor2"],instructors:true,geometry:true},
+  {key:"series",label:"Documentation Name · Week / Version",kind:"series",preview:"#pvSeries",geometry:true},
+  {key:"footer1",label:"꼬리말 1",kind:"footer1",preview:"#pvFooter1",geometry:true},
+  {key:"footer2",label:"꼬리말 2",kind:"footer2",preview:"#pvFooter2",geometry:true},
+  {key:"pageno",label:"페이지 번호",kind:"pageno",preview:"#pvPageNo",notDirect:true},
+];
+
+const objectDefs=[
+  {key:"logo",preview:"#pvLogo",panel:"#logoPanel"},
+  {key:"divider",preview:"#pvDivider",panel:"#dividerPanel"},
+  {key:"rightRule",preview:"#pvRule",panel:"#rightRulePanel"},
+  {key:"footerLine",preview:"#pvFooterLine",panel:"#footerLinePanel"},
+];
+
+function styleAccessor(def){
+  if(def.kind==="line"){
+    const l=line(def.index);
+    const info=preset.header.info;
+    return {
+      text:l.text,
+      x:Number(l.x??info.x??72), width:Number(l.width??info.width??115),
+      y:l.y, size:l.size, bold:!!l.bold, color:l.color||"#555555", font:l.font||"helvetica",
+      setText:v=>l.text=v,
+      setX:v=>l.x=Number(v), setWidth:v=>l.width=Number(v),
+      setY:v=>l.y=v, setSize:v=>l.size=v, setBold:v=>l.bold=v, setColor:v=>l.color=v, setFont:v=>l.font=v
+    };
+  }
+  if(def.kind==="series"){
+    const s=preset.header.series;
+    return {text:s.text,x:Number(s.x??20),width:Number(s.width??170),y:s.y,size:s.size,bold:s.bold!==false,color:s.color||"#555555",font:s.font||"helvetica",
+      setText:v=>s.text=v,setX:v=>s.x=Number(v),setWidth:v=>s.width=Number(v),
+      setY:v=>s.y=v,setSize:v=>s.size=v,setBold:v=>s.bold=v,setColor:v=>s.color=v,setFont:v=>s.font=v};
+  }
+  if(def.kind==="footer1"){
+    const t=preset.footer.text;
+    return {text:t.line1,x:Number(t.line1_x??t.x??20),width:Number(t.line1_width??t.width??170),y:Number(t.line1_y??t.y??282),size:t.line1_size,bold:!!t.line1_bold,color:t.line1_color||t.color||"#707070",font:t.line1_font||"helvetica",
+      setText:v=>t.line1=v,setX:v=>t.line1_x=Number(v),setWidth:v=>t.line1_width=Number(v),
+      setY:v=>{t.line1_y=Number(v);t.y=t.line1_y;t.line_gap=Number(t.line2_y??286.2)-t.line1_y;},
+      setSize:v=>t.line1_size=v,setBold:v=>t.line1_bold=v,setColor:v=>t.line1_color=v,setFont:v=>t.line1_font=v};
+  }
+  if(def.kind==="footer2"){
+    const t=preset.footer.text;
+    const y=Number(t.line2_y??(Number(t.y??282)+Number(t.line_gap||4.2)));
+    return {text:t.line2,x:Number(t.line2_x??t.x??20),width:Number(t.line2_width??t.width??170),y,size:t.line2_size,bold:!!t.line2_bold,color:t.line2_color||t.color||"#707070",font:t.line2_font||"helvetica",
+      setText:v=>t.line2=v,setX:v=>t.line2_x=Number(v),setWidth:v=>t.line2_width=Number(v),
+      setY:v=>{t.line2_y=Number(v);t.line_gap=t.line2_y-Number(t.line1_y??t.y??282);},
+      setSize:v=>t.line2_size=v,setBold:v=>t.line2_bold=v,setColor:v=>t.line2_color=v,setFont:v=>t.line2_font=v};
+  }
+  const p=preset.footer.page_number;
+  return {text:p.format,y:p.y,size:p.size,bold:!!p.bold,color:p.color||"#777777",font:p.font||"helvetica",
+    setText:v=>p.format=v,setY:v=>p.y=v,setSize:v=>p.size=v,setBold:v=>p.bold=v,setColor:v=>p.color=v,setFont:v=>p.font=v};
+}
+function textEditorHtml(def){
+  let content="";
+  if(def.instructors){
+    content = `<div class="row"><label>강사 1</label><input type="text" data-instructor-text="0"></div>
+               <div class="row"><label>강사 2</label><input type="text" data-instructor-text="1"></div>`;
+  }else{
+    content = `<div class="row"><label>Text</label><input type="text" data-text-key="${def.key}"></div>`;
+  }
+
+  let extra = "";
+  if(def.kind==="pageno"){
+    extra = `<div class="ctrl"><label>X</label><input type="range" min="0" max="205" step=".5" data-pn-x><input type="number" data-pn-x-num></div>
+       <div class="coordread" id="pnCoord"></div>`;
+  } else if(def.kind==="footer1" || def.kind==="footer2"){
+    extra = `<div class="quick-align"><button type="button" data-footer-align="${def.key}:left">본문 좌측</button><button type="button" data-footer-align="${def.key}:center">본문 가운데</button><button type="button" data-footer-align="${def.key}:right">본문 우측</button></div>
+      <div class="note">현재 Page Margins의 본문 안쪽 경계를 기준으로 블록 위치를 맞춥니다.</div>`;
+  } else if(def.key==="header3"){
+    extra = `<div class="ctrl"><label>강사 1-2 간격</label><input type="range" min="2" max="12" step=".2" data-instructor-gap><input type="number" data-instructor-gap-num></div>
+       <div class="note">두 강사는 글꼴·크기·굵기·색·기준 Y 위치를 함께 사용합니다. 간격만 별도로 조절합니다.</div>`;
+  }
+
+  const geometry = def.geometry ? `
+      <div class="ctrl"><label>X position</label><input type="range" min="0" max="200" step=".5" data-style="${def.key}:x"><input type="number" data-style-num="${def.key}:x"></div>
+      <div class="ctrl"><label>Text width</label><input type="range" min="10" max="205" step=".5" data-style="${def.key}:width"><input type="number" data-style-num="${def.key}:width"></div>` : "";
+
+  return `<details class="panel editor" id="editor-${def.key}" data-editor="${def.key}">
+    <summary><span class="summary-left"><button type="button" class="vis-toggle" data-vis-key="${def.key}" aria-label="${def.label} 표시 전환">●</button><span class="swatch" id="swatch-${def.key}"></span><span class="summary-label">${def.label}</span></span></summary>
+    <div class="inside">
+      ${content}
+      ${geometry}
+      <div class="ctrl"><label>Y position</label><input type="range" min="0" max="296" step=".5" data-style="${def.key}:y"><input type="number" data-style-num="${def.key}:y"></div>
+      <div class="ctrl"><label>Font size</label><input type="range" min="5" max="28" step=".2" data-style="${def.key}:size"><input type="number" data-style-num="${def.key}:size"></div>
+      <div class="row"><label>Font</label><select data-font-key="${def.key}">
+        <optgroup label="기본 / Apple">
+          <option value="helvetica">Helvetica</option>
+          <option value="helvetica-neue">Helvetica Neue</option>
+          <option value="avenir-next">Avenir Next</option>
+          <option value="apple-sd-gothic-neo">Apple SD Gothic Neo</option>
+          <option value="applegothic">AppleGothic</option>
+          <option value="times">Times</option>
+          <option value="courier">Courier</option>
+        </optgroup>
+        <optgroup label="한글 / 사용자 설치">
+          <option value="pretendard">Pretendard</option>
+          <option value="paperlogy">Paperlogy</option>
+          <option value="noto-sans-kr">Noto Sans KR</option>
+          <option value="noto-serif-kr">Noto Serif KR</option>
+        </optgroup>
+        <optgroup label="Google 계열">
+          <option value="roboto">Roboto</option>
+          <option value="open-sans">Open Sans</option>
+          <option value="montserrat">Montserrat</option>
+          <option value="source-sans-3">Source Sans 3</option>
+          <option value="lato">Lato</option>
+        </optgroup>
+        <optgroup label="직접 지정">
+          <option value="preset">Preset font file</option>
+        </optgroup>
+      </select></div>
+      <div class="note">Pretendard, Paperlogy, Noto/Google, Apple 계열은 Mac에 설치되어 있으면 실제 PDF에도 사용됩니다. 없으면 안전한 기본 폰트로 대체됩니다.</div>
+      <div class="row"><label>Weight</label><select data-bold-key="${def.key}"><option value="false">Regular</option><option value="true">Bold</option></select></div>
+      <div class="row two"><label>Color</label><input type="color" data-color-key="${def.key}"><input type="text" data-color-text="${def.key}"></div>
+      ${extra}
+    </div>
+  </details>`;
+}
+q("#textEditors").innerHTML=textDefs.map(textEditorHtml).join("");
+
+function elementEnabled(key){
+  if(key==="header1")return line(0).enabled!==false;
+  if(key==="header2")return line(1).enabled!==false;
+  if(key==="header3")return line(2).enabled!==false;
+  if(key==="series")return preset.header.series.enabled!==false;
+  if(key==="logo")return preset.header.logo.enabled!==false;
+  if(key==="divider")return preset.header.divider.enabled!==false;
+  if(key==="rightRule")return !!preset.header.right_rule.enabled;
+  if(key==="footerLine")return preset.footer.line.enabled!==false;
+  if(key==="footer1")return preset.footer.text.line1_enabled!==false;
+  if(key==="footer2")return preset.footer.text.line2_enabled!==false;
+  if(key==="pageno")return !!preset.footer.page_number.enabled;
+  return true;
+}
+function setElementEnabled(key,value){
+  const on=!!value;
+  if(key==="header1")line(0).enabled=on;
+  else if(key==="header2")line(1).enabled=on;
+  else if(key==="header3")line(2).enabled=on;
+  else if(key==="series")preset.header.series.enabled=on;
+  else if(key==="logo")preset.header.logo.enabled=on;
+  else if(key==="divider")preset.header.divider.enabled=on;
+  else if(key==="rightRule")preset.header.right_rule.enabled=on;
+  else if(key==="footerLine")preset.footer.line.enabled=on;
+  else if(key==="footer1")preset.footer.text.line1_enabled=on;
+  else if(key==="footer2")preset.footer.text.line2_enabled=on;
+  else if(key==="pageno")preset.footer.page_number.enabled=on;
+  render();
+}
+function syncVisibilityToggles(){
+  qa("[data-vis-key]").forEach(btn=>{
+    const on=elementEnabled(btn.dataset.visKey);
+    btn.textContent=on?"●":"○";
+    btn.classList.toggle("off",!on);
+    btn.title=on?"문서에서 숨기기":"문서에 표시하기";
+    btn.setAttribute("aria-pressed",String(on));
+  });
+}
+function bindVisibilityToggles(){
+  qa("[data-vis-key]").forEach(btn=>btn.addEventListener("click",e=>{
+    e.preventDefault();e.stopPropagation();
+    setElementEnabled(btn.dataset.visKey,!elementEnabled(btn.dataset.visKey));
+  }));
+}
+
+function defaultLayoutFor(name){return name==="vertical"?defaultVerticalLayout():defaultHorizontalLayout();}
+function resetElementPosition(key){
+  const layout=defaultLayoutFor(preset.header?.layout||"horizontal");
+  if(key==="logo")Object.assign(preset.header.logo,layout.logo);
+  else if(key==="divider")Object.assign(preset.header.divider,layout.divider);
+  else if(key==="rightRule")Object.assign(preset.header.right_rule,layout.right_rule);
+  else if(key==="series")Object.assign(preset.header.series,layout.series);
+  else if(["header1","header2","header3"].includes(key)){
+    const i={header1:0,header2:1,header3:2}[key], l=line(i);
+    l.x=layout.info.line_x[i];l.y=layout.info.line_y[i];l.width=layout.info.line_width[i];l.enabled=layout.info.line_enabled[i]!==false;
+    if(i===2)l.line_gap=layout.info.instructor_gap;
+  }else if(key==="footerLine")Object.assign(preset.footer.line,{enabled:true,y:278,length:78});
+  else if(key==="footer1")Object.assign(preset.footer.text,{line1_enabled:true,line1_x:20,line1_width:170,line1_y:282});
+  else if(key==="footer2")Object.assign(preset.footer.text,{line2_enabled:true,line2_x:20,line2_width:170,line2_y:286.2});
+  else if(key==="pageno")Object.assign(preset.footer.page_number,{enabled:false,x:175,y:286,width:20});
+  render();
+  status("현재 레이아웃의 기본 위치로 되돌렸습니다.");
+}
+function installResetButtons(){
+  const panels={
+    logo:"#logoPanel",divider:"#dividerPanel",rightRule:"#rightRulePanel",footerLine:"#footerLinePanel",
+    header1:"#editor-header1",header2:"#editor-header2",header3:"#editor-header3",series:"#editor-series",
+    footer1:"#editor-footer1",footer2:"#editor-footer2",pageno:"#editor-pageno"
+  };
+  Object.entries(panels).forEach(([key,sel])=>{
+    const inside=q(sel)?.querySelector(".inside");if(!inside)return;
+    const tools=document.createElement("div");tools.className="panel-tools";
+    const btn=document.createElement("button");btn.type="button";btn.textContent="↺ 위치 초기화";btn.dataset.resetKey=key;
+    btn.addEventListener("click",()=>resetElementPosition(key));
+    tools.appendChild(btn);inside.prepend(tools);
+  });
+}
+
+function alignFooter(key,mode){
+  const def=textDefs.find(d=>d.key===key), a=styleAccessor(def);
+  const left=Number(preset.page.left??20), rightEdge=A4W-Number(preset.page.right??20), width=Number(a.width??170);
+  let x=left;
+  if(mode==="center")x=(left+rightEdge-width)/2;
+  else if(mode==="right")x=rightEdge-width;
+  x=Math.max(0,Math.min(A4W-width,x));
+  a.setX(Number(x.toFixed(2)));render();
+}
+function bindFooterAlign(){
+  qa("[data-footer-align]").forEach(btn=>btn.addEventListener("click",()=>{
+    const [key,mode]=btn.dataset.footerAlign.split(":");alignFooter(key,mode);
+  }));
+}
+
+const previewMap={header1:"#pvHeader1",header2:"#pvHeader2",series:"#pvSeries",footer1:"#pvFooter1",footer2:"#pvFooter2",pageno:"#pvPageNo",logo:"#pvLogo",divider:"#pvDivider",rightRule:"#pvRule",footerLine:"#pvFooterLine"};
+function rectMmFromElement(el){
+  if(!el || getComputedStyle(el).display==="none")return null;
+  return {left:el.offsetLeft/SCALE,top:el.offsetTop/SCALE,width:el.offsetWidth/SCALE,height:el.offsetHeight/SCALE,
+    get right(){return this.left+this.width},get bottom(){return this.top+this.height},get center(){return this.left+this.width/2}};
+}
+function rectMmForKey(key){
+  if(key==="header3"){
+    const a=rectMmFromElement(q("#pvInstructor1")),b=rectMmFromElement(q("#pvInstructor2"));
+    if(!a&&!b)return null;if(!a)return b;if(!b)return a;
+    const left=Math.min(a.left,b.left),top=Math.min(a.top,b.top),right=Math.max(a.right,b.right),bottom=Math.max(a.bottom,b.bottom);
+    return {left,top,width:right-left,height:bottom-top,right,bottom,center:(left+right)/2};
+  }
+  return rectMmFromElement(q(previewMap[key]||"#__none"));
+}
+function smartTargetsX(excludeKey){
+  const out=[0,Number(preset.page.left??20),A4W/2,A4W-Number(preset.page.right??20),A4W];
+  Object.keys(previewMap).forEach(key=>{if(key===excludeKey)return;const r=rectMmForKey(key);if(r)out.push(r.left,r.center,r.right);});
+  if(excludeKey!=="header3"){const r=rectMmForKey("header3");if(r)out.push(r.left,r.center,r.right);}
+  return [...new Set(out.map(v=>Number(v.toFixed(3))))];
+}
+function smartTargetsY(excludeKey){
+  const top=Number(previewPage===1?preset.page.first_top:preset.page.other_top);
+  const out=[0,top,297/2,297-Number(preset.page.bottom??24),297];
+  [...Object.keys(previewMap),"header3"].forEach(key=>{if(key===excludeKey)return;const r=rectMmForKey(key);if(r)out.push(r.top,r.bottom);});
+  return [...new Set(out.map(v=>Number(v.toFixed(3))))];
+}
+function nearestDelta(values,targets,tolerance=1.5){
+  let best=null;
+  values.forEach(v=>targets.forEach(t=>{const d=t-v;if(Math.abs(d)<=tolerance && (!best||Math.abs(d)<Math.abs(best.delta)))best={delta:d,target:t};}));
+  return best;
+}
+function hideSmartGuides(){
+  ["#smartV1","#smartV2","#smartV3","#smartVMatch","#smartH1","#smartHMatch","#smartGuideLabel"].forEach(sel=>q(sel).style.display="none");
+}
+function showSmartGuides(key,matchX=null,matchY=null){
+  if(!previewPrefs.showSmartGuides){hideSmartGuides();return;}
+  const r=rectMmForKey(key);if(!r){hideSmartGuides();return;}
+  const xs=[r.left,r.center,r.right], ids=["#smartV1","#smartV2","#smartV3"];
+  ids.forEach((id,i)=>{const el=q(id);el.style.left=mm(xs[i])+"px";el.style.display="block";});
+  const h=q("#smartH1");h.style.top=mm(r.top)+"px";h.style.display="block";
+  const vm=q("#smartVMatch");if(matchX!=null){vm.style.left=mm(matchX)+"px";vm.style.display="block";}else vm.style.display="none";
+  const hm=q("#smartHMatch");if(matchY!=null){hm.style.top=mm(matchY)+"px";hm.style.display="block";}else hm.style.display="none";
+  const label=q("#smartGuideLabel");label.textContent=`L ${r.left.toFixed(1)} · C ${r.center.toFixed(1)} · R ${r.right.toFixed(1)} mm`;
+  label.style.left=mm(Math.max(0,Math.min(160,r.left+1)))+"px";label.style.top="5px";label.style.display="block";
+  clearTimeout(smartGuideTimer);
+}
+function smartKeyForPath(path){
+  if(path.startsWith("header.logo."))return "logo";
+  if(path.startsWith("header.divider."))return "divider";
+  if(path.startsWith("header.right_rule."))return "rightRule";
+  if(path.startsWith("footer.line."))return "footerLine";
+  return null;
+}
+function applySmartToStyle(def,prop,range){
+  const key=def.key,a=styleAccessor(def),r=rectMmForKey(key);if(!r)return;
+  let matchX=null,matchY=null,value=Number(range.value),hit=null;
+  if(previewPrefs.snap && prop==="x"){
+    hit=nearestDelta([r.left,r.center,r.right],smartTargetsX(key));
+    if(hit){value+=hit.delta;a.setX(value);range.value=value;q(`[data-style-num="${key}:x"]`).value=value;render();matchX=hit.target;}
+  }else if(previewPrefs.snap && prop==="width"){
+    hit=nearestDelta([r.right],smartTargetsX(key));
+    if(hit){value=Math.max(10,value+hit.delta);if(def.kind==="footer1"||def.kind==="footer2")value=Math.min(A4W-Number(a.x),value);a.setWidth(value);range.value=value;q(`[data-style-num="${key}:width"]`).value=value;render();matchX=hit.target;}
+  }else if(previewPrefs.snap && prop==="y"){
+    hit=nearestDelta([r.top],smartTargetsY(key));
+    if(hit){value+=hit.delta;a.setY(value);range.value=value;q(`[data-style-num="${key}:y"]`).value=value;render();matchY=hit.target;}
+  }
+  showSmartGuides(key,matchX,matchY);
+}
+function applySmartToPath(range){
+  const path=range.dataset.path,key=smartKeyForPath(path);if(!key)return;
+  let r=rectMmForKey(key);if(!r)return;
+  let hit=null,value=Number(range.value),matchX=null,matchY=null;
+  if(previewPrefs.snap && /\.x$/.test(path)){
+    hit=nearestDelta([r.left,r.center,r.right],smartTargetsX(key));if(hit){value+=hit.delta;set(path,value);range.value=value;const n=q(`[data-num="${path}"]`);if(n)n.value=value;render();matchX=hit.target;}
+  }else if(previewPrefs.snap && /\.x1$/.test(path)){
+    hit=nearestDelta([r.left],smartTargetsX(key));if(hit){value+=hit.delta;set(path,value);range.value=value;const n=q(`[data-num="${path}"]`);if(n)n.value=value;render();matchX=hit.target;}
+  }else if(previewPrefs.snap && /\.x2$/.test(path)){
+    hit=nearestDelta([r.right],smartTargetsX(key));if(hit){value+=hit.delta;set(path,value);range.value=value;const n=q(`[data-num="${path}"]`);if(n)n.value=value;render();matchX=hit.target;}
+  }else if(previewPrefs.snap && /\.width$/.test(path) && key==="logo"){
+    hit=nearestDelta([r.right],smartTargetsX(key));if(hit){value=Math.max(1,value+hit.delta);set(path,value);range.value=value;const n=q(`[data-num="${path}"]`);if(n)n.value=value;render();matchX=hit.target;}
+  }else if(previewPrefs.snap && /\.y$/.test(path)){
+    hit=nearestDelta([r.top],smartTargetsY(key));if(hit){value+=hit.delta;set(path,value);range.value=value;const n=q(`[data-num="${path}"]`);if(n)n.value=value;render();matchY=hit.target;}
+  }
+  showSmartGuides(key,matchX,matchY);
+}
+function bindSmartGuideRanges(){
+  qa('input[type="range"][data-style]').forEach(range=>{
+    const [key,prop]=range.dataset.style.split(":");const def=textDefs.find(d=>d.key===key);if(!def||!["x","width","y"].includes(prop))return;
+    range.addEventListener("input",()=>applySmartToStyle(def,prop,range));
+    ["change","pointerup","blur"].forEach(ev=>range.addEventListener(ev,()=>{clearTimeout(smartGuideTimer);smartGuideTimer=setTimeout(hideSmartGuides,120);}));
+  });
+  qa('input[type="range"][data-path]').forEach(range=>{
+    const path=range.dataset.path;if(!smartKeyForPath(path))return;
+    range.addEventListener("input",()=>applySmartToPath(range));
+    ["change","pointerup","blur"].forEach(ev=>range.addEventListener(ev,()=>{clearTimeout(smartGuideTimer);smartGuideTimer=setTimeout(hideSmartGuides,120);}));
+  });
+  const pn=q("[data-pn-x]");if(pn){pn.addEventListener("input",()=>showSmartGuides("pageno"));["change","pointerup","blur"].forEach(ev=>pn.addEventListener(ev,()=>setTimeout(hideSmartGuides,120)));}
+}
+function updateBoundsWarning(){
+  const keys=["logo","header1","header2","header3","divider","series","rightRule","footerLine","footer1","footer2","pageno"];
+  const bad=keys.filter(key=>{const r=rectMmForKey(key);return r&&(r.left<-.2||r.right>A4W+.2||r.top<-.2||r.bottom>297.2);});
+  const el=q("#boundsWarning");
+  if(bad.length){el.textContent=`⚠ ${bad.length}개 요소가 A4 범위를 벗어났습니다: ${bad.join(", ")}`;el.style.display="block";}
+  else{el.textContent="";el.style.display="none";}
+}
+
+function bindFooterGeometryLimits(){
+  ["footer1","footer2"].forEach(key=>{
+    const def=textDefs.find(d=>d.key===key);
+    const clampX=el=>{const a=styleAccessor(def);const v=Math.max(0,Math.min(A4W-Number(a.width??170),Number(el.value)));if(v!==Number(el.value)){a.setX(v);el.value=v;const other=el.matches("[data-style-num]")?q(`[data-style="${key}:x"]`):q(`[data-style-num="${key}:x"]`);if(other)other.value=v;render();}};
+    const clampW=el=>{const a=styleAccessor(def);const v=Math.max(10,Math.min(A4W-Number(a.x??0),Number(el.value)));if(v!==Number(el.value)){a.setWidth(v);el.value=v;const other=el.matches("[data-style-num]")?q(`[data-style="${key}:width"]`):q(`[data-style-num="${key}:width"]`);if(other)other.value=v;render();}};
+    [q(`[data-style="${key}:x"]`),q(`[data-style-num="${key}:x"]`)].forEach(el=>el.addEventListener("input",()=>clampX(el)));
+    [q(`[data-style="${key}:width"]`),q(`[data-style-num="${key}:width"]`)].forEach(el=>el.addEventListener("input",()=>clampW(el)));
+  });
+}
+
+installResetButtons();
+bindVisibilityToggles();
+bindFooterAlign();
+
+function bindGeneric(){
+  qa("[data-path]").forEach(el=>{
+    const path=el.dataset.path;
+    const event=el.type==="range"?"input":"input";
+    el.addEventListener(event,()=>{
+      set(path,el.type==="range"?Number(el.value):el.value);
+      const n=q(`[data-num="${path}"]`); if(n)n.value=el.value;
+      render();
+    });
+  });
+  qa("[data-num]").forEach(el=>{
+    const path=el.dataset.num;
+    el.addEventListener("input",()=>{
+      set(path,Number(el.value));
+      const r=q(`[data-path="${path}"]`); if(r&&r.type==="range")r.value=el.value;
+      render();
+    });
+  });
+  qa("[data-bool]").forEach(el=>el.addEventListener("change",()=>{set(el.dataset.bool,el.checked);render();}));
+}
+bindGeneric();
+
+function bindTextEditors(){
+  textDefs.forEach(def=>{
+    const editor=q(`#editor-${def.key}`);
+    if(def.instructors){
+      q('[data-instructor-text="0"]').addEventListener("input",e=>{setInstructor(0,e.target.value);render(false);});
+      q('[data-instructor-text="1"]').addEventListener("input",e=>{setInstructor(1,e.target.value);render(false);});
+    }else{
+      const textEl=q(`[data-text-key="${def.key}"]`);
+      textEl.addEventListener("input",()=>{styleAccessor(def).setText(textEl.value);render(false);});
+    }
+    if(def.geometry){
+      q(`[data-style="${def.key}:x"]`).addEventListener("input",e=>{
+        styleAccessor(def).setX(Number(e.target.value));q(`[data-style-num="${def.key}:x"]`).value=e.target.value;render();
+      });
+      q(`[data-style-num="${def.key}:x"]`).addEventListener("input",e=>{
+        styleAccessor(def).setX(Number(e.target.value));q(`[data-style="${def.key}:x"]`).value=e.target.value;render();
+      });
+      q(`[data-style="${def.key}:width"]`).addEventListener("input",e=>{
+        styleAccessor(def).setWidth(Number(e.target.value));q(`[data-style-num="${def.key}:width"]`).value=e.target.value;render();
+      });
+      q(`[data-style-num="${def.key}:width"]`).addEventListener("input",e=>{
+        styleAccessor(def).setWidth(Number(e.target.value));q(`[data-style="${def.key}:width"]`).value=e.target.value;render();
+      });
+    }
+    q(`[data-style="${def.key}:y"]`).addEventListener("input",e=>{
+      styleAccessor(def).setY(Number(e.target.value));q(`[data-style-num="${def.key}:y"]`).value=e.target.value;render();
+    });
+    q(`[data-style-num="${def.key}:y"]`).addEventListener("input",e=>{
+      styleAccessor(def).setY(Number(e.target.value));q(`[data-style="${def.key}:y"]`).value=e.target.value;render();
+    });
+    q(`[data-style="${def.key}:size"]`).addEventListener("input",e=>{
+      styleAccessor(def).setSize(Number(e.target.value));q(`[data-style-num="${def.key}:size"]`).value=e.target.value;render();
+    });
+    q(`[data-style-num="${def.key}:size"]`).addEventListener("input",e=>{
+      styleAccessor(def).setSize(Number(e.target.value));q(`[data-style="${def.key}:size"]`).value=e.target.value;render();
+    });
+    q(`[data-font-key="${def.key}"]`).addEventListener("change",e=>{styleAccessor(def).setFont(e.target.value);render();});
+    q(`[data-bold-key="${def.key}"]`).addEventListener("change",e=>{styleAccessor(def).setBold(e.target.value==="true");render();});
+    q(`[data-color-key="${def.key}"]`).addEventListener("input",e=>{
+      styleAccessor(def).setColor(e.target.value);q(`[data-color-text="${def.key}"]`).value=e.target.value;render();
+    });
+    q(`[data-color-text="${def.key}"]`).addEventListener("input",e=>{
+      if(/^#[0-9a-fA-F]{6}$/.test(e.target.value)){styleAccessor(def).setColor(e.target.value);q(`[data-color-key="${def.key}"]`).value=e.target.value;render();}
+    });
+    editor.addEventListener("toggle",()=>{if(editor.open)selectElement(def.key,false);});
+  });
+  q("[data-pn-x]").addEventListener("input",e=>{preset.footer.page_number.x=Number(e.target.value);q("[data-pn-x-num]").value=e.target.value;render();});
+  q("[data-pn-x-num]").addEventListener("input",e=>{preset.footer.page_number.x=Number(e.target.value);q("[data-pn-x]").value=e.target.value;render();});
+
+  q("[data-instructor-gap]").addEventListener("input",e=>{
+    line(2).line_gap=Number(e.target.value);
+    q("[data-instructor-gap-num]").value=e.target.value;
+    render();
+  });
+  q("[data-instructor-gap-num]").addEventListener("input",e=>{
+    line(2).line_gap=Number(e.target.value);
+    q("[data-instructor-gap]").value=e.target.value;
+    render();
+  });
+}
+bindTextEditors();
+bindFooterGeometryLimits();
+bindSmartGuideRanges();
+
+function syncAll(){
+  qa("[data-path]").forEach(el=>el.value=get(el.dataset.path)??"");
+  qa("[data-num]").forEach(el=>el.value=get(el.dataset.num)??0);
+  qa("[data-bool]").forEach(el=>el.checked=!!get(el.dataset.bool));
+  q("#presetName").value=preset.name||"";
+  q("#showMarginGuides").checked=!!previewPrefs.showMarginGuides;
+  q("#showSmartGuides").checked=!!previewPrefs.showSmartGuides;
+  q("#enableSnap").checked=!!previewPrefs.snap;
+  textDefs.forEach(def=>{
+    const a=styleAccessor(def);
+    if(def.instructors){
+      const list=instructors();
+      q('[data-instructor-text="0"]').value=list[0]??"";
+      q('[data-instructor-text="1"]').value=list[1]??"";
+    }else{
+      q(`[data-text-key="${def.key}"]`).value=a.text??"";
+    }
+    if(def.geometry){
+      q(`[data-style="${def.key}:x"]`).value=a.x??0;
+      q(`[data-style-num="${def.key}:x"]`).value=a.x??0;
+      q(`[data-style="${def.key}:width"]`).value=a.width??100;
+      q(`[data-style-num="${def.key}:width"]`).value=a.width??100;
+      if(def.kind==="footer1" || def.kind==="footer2"){
+        const maxX=Math.max(0,A4W-Number(a.width??170));
+        const xr=q(`[data-style="${def.key}:x"]`), xn=q(`[data-style-num="${def.key}:x"]`);
+        xr.max=maxX;xn.max=maxX;
+        const maxW=Math.max(10,A4W-Number(a.x??0));
+        const wr=q(`[data-style="${def.key}:width"]`), wn=q(`[data-style-num="${def.key}:width"]`);
+        wr.max=maxW;wn.max=maxW;
+      }
+    }
+    q(`[data-style="${def.key}:y"]`).value=a.y??0;
+    q(`[data-style-num="${def.key}:y"]`).value=a.y??0;
+    q(`[data-style="${def.key}:size"]`).value=a.size??10;
+    q(`[data-style-num="${def.key}:size"]`).value=a.size??10;
+    q(`[data-font-key="${def.key}"]`).value=a.font||"helvetica";
+    q(`[data-bold-key="${def.key}"]`).value=String(!!a.bold);
+    q(`[data-color-key="${def.key}"]`).value=a.color||"#777777";
+    q(`[data-color-text="${def.key}"]`).value=a.color||"#777777";
+    q(`#swatch-${def.key}`).style.background=a.color||"#777777";
+  });
+  const pn=preset.footer.page_number;
+  q("[data-pn-x]").value=pn.x??175;q("[data-pn-x-num]").value=pn.x??175;
+  q("[data-instructor-gap]").value=line(2).line_gap??4.4;
+  q("[data-instructor-gap-num]").value=line(2).line_gap??4.4;
+  const logoPath=preset.header.logo.path;
+  const builtins=defaults.builtin_logos||{};
+  q("#logoLong").classList.toggle("active",logoPath===defaults.long_logo);
+  q("#logoCircle").classList.toggle("active",logoPath===defaults.circle_logo);
+  q("#logoWkuLand2").classList.toggle("active",logoPath===builtins.wku_land_2);
+  q("#logoWkuLand1").classList.toggle("active",logoPath===builtins.wku_land_1);
+  q("#logoWkuCircle").classList.toggle("active",logoPath===builtins.wku_circle);
+  q("#logoTlf").classList.toggle("active",logoPath===builtins.tlf_logo);
+  q("#logoTlfText").classList.toggle("active",logoPath===builtins.tlf_logo_text);
+  syncVisibilityToggles();
+}
+
+function clearSelection(){
+  selectedKey=null;
+  qa(".text-selectable,.object-selectable").forEach(x=>{
+    x.classList.remove("selected");
+    if(document.activeElement===x)x.blur();
+  });
+  qa("details.editor,details.object-editor").forEach(x=>x.classList.remove("selected"));
+}
+
+function selectElement(key,scroll=true){
+  selectedKey=key;
+  qa(".text-selectable,.object-selectable").forEach(x=>x.classList.remove("selected"));
+  qa("details.editor,details.object-editor").forEach(x=>x.classList.remove("selected"));
+  const def=textDefs.find(d=>d.key===key); if(!def)return;
+  if(def.previews)def.previews.forEach(sel=>q(sel).classList.add("selected"));
+  else q(def.preview).classList.add("selected");
+  const editor=q(`#editor-${key}`); editor.classList.add("selected"); editor.open=true;
+  if(scroll)editor.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+function selectObject(key,scroll=true){
+  selectedKey=key;
+  qa(".text-selectable,.object-selectable").forEach(x=>x.classList.remove("selected"));
+  qa("details.editor,details.object-editor").forEach(x=>x.classList.remove("selected"));
+  const def=objectDefs.find(d=>d.key===key); if(!def)return;
+  q(def.preview).classList.add("selected");
+  const editor=q(def.panel); editor.classList.add("selected"); editor.open=true;
+  if(scroll)editor.scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+function restoreSelection(){
+  if(!selectedKey)return;
+  if(textDefs.some(d=>d.key===selectedKey))selectElement(selectedKey,false);
+  else if(objectDefs.some(d=>d.key===selectedKey))selectObject(selectedKey,false);
+}
+
+textDefs.forEach(def=>{
+  if(def.instructors){
+    const p1=q("#pvInstructor1"),p2=q("#pvInstructor2");
+    [p1,p2].forEach(pv=>{
+      pv.addEventListener("click",()=>selectElement(def.key,true));
+      pv.addEventListener("keydown",e=>{if(e.key==="Enter")e.preventDefault();});
+    });
+    p1.addEventListener("input",()=>{
+      setInstructor(0,p1.innerText.replace(/\n/g,""));
+      q('[data-instructor-text="0"]').value=instructors()[0];
+    });
+    p2.addEventListener("input",()=>{
+      setInstructor(1,p2.innerText.replace(/\n/g,""));
+      q('[data-instructor-text="1"]').value=instructors()[1];
+    });
+  }else{
+    const pv=q(def.preview);
+    pv.addEventListener("click",()=>selectElement(def.key,true));
+    if(!def.notDirect){
+      pv.addEventListener("input",()=>{
+        const txt=pv.innerText.replace(/\n$/, "");
+        styleAccessor(def).setText(txt);
+        q(`[data-text-key="${def.key}"]`).value=txt;
+      });
+    }
+  }
+});
+
+objectDefs.forEach(def=>{
+  const pv=q(def.preview);
+  pv.addEventListener("click",()=>selectObject(def.key,true));
+  const panel=q(def.panel);
+  panel.addEventListener("toggle",()=>{
+    if(panel.open)selectObject(def.key,false);
+  });
+});
+
+// Clicking anywhere on the A4 preview that is not an editable text element
+// clears the active selection/highlight. This includes blank paper, body preview,
+// logo, divider, and decorative rules.
+q("#sheet").addEventListener("click",(event)=>{
+  if(event.target.closest(".text-selectable,.object-selectable")) return;
+  clearSelection();
+});
+
+
+function renderMarginGuides(){
+  const enabled=!!previewPrefs.showMarginGuides;
+  const left=Number(preset.page.left??20);
+  const right=Number(preset.page.right??20);
+  const bottom=Number(preset.page.bottom??24);
+  const top=Number(previewPage===1 ? preset.page.first_top : preset.page.other_top);
+
+  const gl=q("#guideLeft"), gr=q("#guideRight"), gt=q("#guideTop"), gb=q("#guideBottom");
+  const label=q("#guideTopLabel");
+
+  [gl,gr,gt,gb,label].forEach(el=>el.style.display=enabled?"block":"none");
+  if(!enabled)return;
+
+  gl.style.left=mm(left)+"px";
+  gr.style.left=mm(A4W-right)+"px";
+  gt.style.top=mm(top)+"px";
+  gb.style.top=mm(297-bottom)+"px";
+
+  label.style.left=mm(left+1.5)+"px";
+  label.style.top=Math.max(2,mm(top)-16)+"px";
+  label.textContent=previewPage===1
+    ? `1P Top ${top} mm · ${preset.header?.layout==="vertical"?"Vertical":"Horizontal"}`
+    : `2P+ Top ${top} mm`;
+}
+
+function render(sync=true){
+  normalizePreset();
+  const isFirst=previewPage===1;
+  const logo=preset.header.logo, info=preset.header.info;
+  const logoX=Number(logo.x||18),logoY=Number(logo.y||14),logoW=Number(logo.width||40);
+  const infoX=info.auto_after_logo?logoX+logoW+Number(info.gap||14):Number(info.x||72);
+  const infoW=Number(info.width||115);
+
+  q("#pvLogo").src=imageUrl(logo.path);
+  q("#pvLogo").style.display=(isFirst && logo.enabled!==false)?"block":"none";
+  q("#pvLogo").style.left=mm(logoX)+"px";q("#pvLogo").style.top=mm(logoY)+"px";q("#pvLogo").style.width=mm(logoW)+"px";q("#pvLogo").style.height="auto";
+
+  function effectiveLineX(l){
+    const lineX=Number(l.x??info.x??72);
+    if(info.auto_after_logo){
+      return infoX + (lineX-Number(info.x??72));
+    }
+    return lineX;
+  }
+
+  [0,1].forEach(i=>{
+    const l=line(i),el=q(`#pvHeader${i+1}`);
+    if(document.activeElement!==el)el.innerText=l.text||"";
+    el.style.display=(isFirst && l.enabled!==false)?"block":"none";
+    el.style.left=mm(effectiveLineX(l))+"px";
+    el.style.top=mm(l.y)+"px";
+    el.style.width=mm(Number(l.width??infoW))+"px";
+    el.style.fontSize=(Number(l.size)*1.12)+"px";el.style.fontWeight=l.bold?700:400;el.style.color=l.color;
+    el.style.fontFamily=fontCss(l.font);
+  });
+
+  const l3=line(2),inst=instructors();
+  const i1=q("#pvInstructor1"),i2=q("#pvInstructor2");
+  if(document.activeElement!==i1)i1.innerText=inst[0]||"";
+  if(document.activeElement!==i2)i2.innerText=inst[1]||"";
+  [i1,i2].forEach(el=>{
+    el.style.display=(isFirst && l3.enabled!==false)?"block":"none";
+    el.style.left=mm(effectiveLineX(l3))+"px";
+    el.style.width=mm(Number(l3.width??infoW))+"px";
+    el.style.fontSize=(Number(l3.size)*1.12)+"px";el.style.fontWeight=l3.bold?700:400;el.style.color=l3.color;
+    el.style.fontFamily=fontCss(l3.font);
+  });
+  i1.style.top=mm(l3.y)+"px";
+  i2.style.top=mm(Number(l3.y)+Number(l3.line_gap||4.4))+"px";
+
+  const d=preset.header.divider, pvd=q("#pvDivider");
+  pvd.style.display=(isFirst && d.enabled)?"block":"none";
+  pvd.style.left=mm(d.x1)+"px";pvd.style.top=mm(d.y)+"px";pvd.style.width=mm(Number(d.x2)-Number(d.x1))+"px";
+  pvd.style.height=Math.max(1,Number(d.width||.35)*1.25)+"px";
+  if(!pvd.classList.contains("selected"))pvd.style.background=d.color||"#d0d0d0";
+
+  const s=preset.header.series,pvs=q("#pvSeries");
+  if(document.activeElement!==pvs)pvs.innerText=s.text||"";
+  pvs.style.display=(isFirst && s.enabled)?"block":"none";
+  pvs.style.left=mm(s.x)+"px";pvs.style.top=mm(s.y)+"px";pvs.style.width=mm(s.width||170)+"px";
+  pvs.style.fontSize=(Number(s.size)*1.12)+"px";pvs.style.fontWeight=s.bold===false?400:700;pvs.style.color=s.color;pvs.style.fontFamily=fontCss(s.font);
+
+  const rr=preset.header.right_rule,pvr=q("#pvRule");
+  pvr.style.display=(isFirst && rr.enabled)?"block":"none";pvr.style.left=mm(rr.x)+"px";pvr.style.top=mm(rr.y1)+"px";pvr.style.height=mm(Number(rr.y2)-Number(rr.y1))+"px";
+  pvr.style.width=Math.max(1,Number(rr.width||.35)*1.25)+"px";
+  if(!pvr.classList.contains("selected"))pvr.style.background=rr.color||"#555555";
+
+  q("#pvBody").style.left=mm(preset.page.left)+"px";q("#pvBody").style.right=mm(preset.page.right)+"px";
+  q("#pvBody").style.top=mm(isFirst?preset.page.first_top:preset.page.other_top)+"px";
+
+  const fl=preset.footer.line, pfl=q("#pvFooterLine");
+  pfl.style.display=fl.enabled?"block":"none";pfl.style.top=mm(fl.y)+"px";pfl.style.width=mm(fl.length)+"px";pfl.style.left=mm((A4W-fl.length)/2)+"px";
+  pfl.style.height=Math.max(1,Number(fl.width||.25)*1.25)+"px";
+  if(!pfl.classList.contains("selected"))pfl.style.background=fl.color||"#d2d2d2";
+
+  const ft=preset.footer.text;
+  const f1=q("#pvFooter1"), f2=q("#pvFooter2");
+  if(document.activeElement!==f1)f1.innerText=ft.line1||"";
+  if(document.activeElement!==f2)f2.innerText=ft.line2||"";
+  const footer1X=Number(ft.line1_x??ft.x??20), footer2X=Number(ft.line2_x??ft.x??20);
+  const footer1W=Number(ft.line1_width??ft.width??170), footer2W=Number(ft.line2_width??ft.width??170);
+  f1.style.display=ft.line1_enabled===false?"none":"block";f2.style.display=ft.line2_enabled===false?"none":"block";
+  f1.style.left=mm(footer1X)+"px";f1.style.width=mm(footer1W)+"px";f1.style.textAlign="center";
+  f2.style.left=mm(footer2X)+"px";f2.style.width=mm(footer2W)+"px";f2.style.textAlign="center";
+  const footer1Y=Number(ft.line1_y??ft.y??282);
+  const footer2Y=Number(ft.line2_y??(footer1Y+Number(ft.line_gap||4.2)));
+  f1.style.top=mm(footer1Y)+"px";f2.style.top=mm(footer2Y)+"px";
+  f1.style.fontSize=(Number(ft.line1_size)*1.12)+"px";f2.style.fontSize=(Number(ft.line2_size)*1.12)+"px";
+  f1.style.fontWeight=ft.line1_bold?700:400;f2.style.fontWeight=ft.line2_bold?700:400;
+  f1.style.color=ft.line1_color||ft.color;f2.style.color=ft.line2_color||ft.color;
+  f1.style.fontFamily=fontCss(ft.line1_font);f2.style.fontFamily=fontCss(ft.line2_font);
+
+  const pn=preset.footer.page_number,pvp=q("#pvPageNo");
+  const previewTotal=bodyPdfPath?(pdfPageCount||1):2;
+  pvp.innerText=(pn.format||"{page} / {pages}").replace("{page}",String(previewPage)).replace("{pages}",String(previewTotal));
+  pvp.style.left=mm(pn.x)+"px";pvp.style.top=mm(pn.y)+"px";pvp.style.width=mm(pn.width||20)+"px";
+  pvp.style.fontSize=(Number(pn.size)*1.12)+"px";pvp.style.fontWeight=pn.bold?700:400;pvp.style.color=pn.color;pvp.style.fontFamily=fontCss(pn.font);
+  pvp.style.textAlign=pn.align||"right";pvp.style.display=pn.enabled?"block":"none";pvp.classList.remove("ghost");
+  q("#pnCoord").textContent=`X ${pn.x} mm · Y ${pn.y} mm · ${pn.size} pt · ${pn.enabled?"PDF 출력 ON":"위치 확인만 · 출력 OFF"}`;
+
+  q("#previewTitle").textContent=`${previewPage}페이지 미리보기`;
+  q("#previewPage1").classList.toggle("active",previewPage===1);
+  q("#previewPage2").classList.toggle("active",previewPage===2);
+  q("#previewPage2").disabled=!!bodyPdfPath && (pdfPageCount===1);
+  const topValue=isFirst?preset.page.first_top:preset.page.other_top;
+  if(bodyPdfPath){
+    q("#previewMeta").textContent=`Body PDF ${previewPage}${pdfPageCount?` / ${pdfPageCount}`:""}페이지 · 설정 Top ${topValue} mm · 여백 변경은 Typora 재출력 후 본문에 반영`;
+    q("#generate").textContent="최종 PDF 내보내기…";
+  }else{
+    q("#previewMeta").textContent=`Dummy Document ${previewPage} / 2페이지 · 설정 Top ${topValue} mm · 이 상태로 테스트 PDF 내보내기 가능`;
+    q("#generate").textContent="더미 테스트 PDF 내보내기…";
+  }
+  renderDummyBody();
+
+  renderMarginGuides();
+  updateBoundsWarning();
+  captureActiveLayout();
+  updateLayoutButtons();
+  if(sync)syncAll();
+  restoreSelection();
+}
+
+qa("[data-pick]").forEach(btn=>btn.addEventListener("click",async()=>{
+  try{
+    const kind=btn.dataset.pick,j=await api("/api/pick",{kind}); if(!j.path)return;
+    if(kind==="pdf"){
+      q("#bodyPdf").value=j.path;
+      q("#outputPdf").value="";
+      await refreshPdfInfo(j.path);
+      await autoFindMetadataForPdf(j.path);
+    }
+    else if(kind==="css")q("#cssPath").value=j.path;
+    else if(kind==="font-regular"){preset.fonts.regular=j.path;syncAll();}
+    else if(kind==="font-bold"){preset.fonts.bold=j.path;syncAll();}
+    status("파일을 선택했습니다.");
+  }catch(e){status(e.message,"err",true);}
+}));
+
+q("#layoutHorizontal").onclick=()=>switchHeaderLayout("horizontal");
+q("#layoutVertical").onclick=()=>switchHeaderLayout("vertical");
+q("#showMarginGuides").addEventListener("change",e=>{
+  previewPrefs.showMarginGuides=e.target.checked;
+  renderMarginGuides();
+});
+q("#showSmartGuides").addEventListener("change",e=>{previewPrefs.showSmartGuides=e.target.checked;if(!e.target.checked)hideSmartGuides();});
+q("#enableSnap").addEventListener("change",e=>{previewPrefs.snap=e.target.checked;});
+q("#coffeeBtn").addEventListener("click",()=>status("만나서 사주세요. ☕","ok",true));
+q("#previewPage1").onclick=()=>setPreviewPage(1);
+q("#previewPage2").onclick=()=>setPreviewPage(2);
+q("#bodyPdf").addEventListener("change",async()=>{
+  const path=q("#bodyPdf").value.trim();
+  await refreshPdfInfo(path);
+  if(path)await autoFindMetadataForPdf(path);
+});
+
+q("#pickMetadata").onclick=async()=>{
+  try{
+    const pick=await api("/api/pick",{kind:"metadata"});
+    if(!pick.path)return;
+    await loadMetadataFile(pick.path,true);
+  }catch(e){status(e.message,"err",true);}
+};
+q("#metadataPath").addEventListener("change",async()=>{
+  const path=q("#metadataPath").value.trim();
+  if(!path)return;
+  try{await loadMetadataFile(path,true);}catch(e){status(e.message,"err",true);}
+});
+
+q("#clearOutput").onclick=()=>{q("#outputPdf").value="";};
+
+function chooseBuiltinLogo(path){
+  if(!path)return;
+  preset.header.logo.path=path;
+  render();
+}
+q("#logoLong").onclick=()=>chooseBuiltinLogo(defaults.long_logo);
+q("#logoCircle").onclick=()=>chooseBuiltinLogo(defaults.circle_logo);
+q("#logoWkuLand2").onclick=()=>chooseBuiltinLogo(defaults.builtin_logos?.wku_land_2);
+q("#logoWkuLand1").onclick=()=>chooseBuiltinLogo(defaults.builtin_logos?.wku_land_1);
+q("#logoWkuCircle").onclick=()=>chooseBuiltinLogo(defaults.builtin_logos?.wku_circle);
+q("#logoTlf").onclick=()=>chooseBuiltinLogo(defaults.builtin_logos?.tlf_logo);
+q("#logoTlfText").onclick=()=>chooseBuiltinLogo(defaults.builtin_logos?.tlf_logo_text);
+q("#logoCustom").onclick=async()=>{
+  try{
+    const j=await api("/api/pick",{kind:"logo"});
+    if(j.path){preset.header.logo.path=j.path;render();}
+  }catch(e){status(e.message,"err",true);}
+};
+
+q("#presetName").addEventListener("input",()=>preset.name=q("#presetName").value);
+
+q("#loadPreset").onclick=async()=>{
+  try{
+    const j=await api("/api/load-preset");
+    if(j.cancelled)return;
+    preset=j.preset;
+    normalizePreset();
+    applyLayoutGeometry(preset.header.layout||"horizontal",false);
+    render();
+    status("프리셋을 불러왔습니다: "+j.path,"ok",true);
+  }catch(e){status(e.message,"err",true);}
+};
+
+q("#savePreset").onclick=async()=>{
+  try{
+    captureActiveLayout();
+    preset.name=q("#presetName").value||preset.name;
+    const j=await api("/api/save-preset",{preset});
+    if(j.cancelled)return;
+    status("프리셋 저장 완료: "+j.path,"ok",true);
+  }catch(e){status(e.message,"err",true);}
+};
+
+q("#saveCss").onclick=async()=>{
+  try{
+    captureActiveLayout();
+    const j=await api("/api/save-css",{preset,css_path:q("#cssPath").value});
+    if(j.cancelled)return;
+    q("#cssPath").value=j.path;
+    status("현재 Layout의 1페이지 Top과 공통 여백을 CSS에 반영했습니다. Typora에서 본문 PDF를 다시 출력하세요.","ok",true);
+  }catch(e){status(e.message,"err",true);}
+};
+
+q("#generate").onclick=async()=>{
+  try{
+    captureActiveLayout();
+    const bodyPdf=q("#bodyPdf").value.trim();
+    const pick=await api("/api/pick-output",{body_pdf:bodyPdf});
+    if(pick.cancelled || !pick.path){
+      status("내보내기를 취소했습니다.");
+      return;
+    }
+
+    status(bodyPdf?"최종 PDF 생성 중...":"더미 문서 포함 테스트 PDF 생성 중...");
+    const j=await api("/api/generate",{preset,body_pdf:bodyPdf,output_pdf:pick.path});
+    q("#outputPdf").value=j.output;
+    status((j.dummy?"더미 테스트 PDF 생성 완료: ":"최종 PDF 생성 완료: ")+j.output,"ok",true);
+  }catch(e){status(e.message,"err",true);}
+};
+
+(async()=>{
+  try{
+    const j=await api("/api/default");
+    preset=j.preset;
+    defaults.long_logo=j.long_logo;
+    defaults.circle_logo=j.circle_logo;
+    defaults.builtin_logos=j.builtin_logos||{};
+    defaults.builtin_logo_folder=j.builtin_logo_folder||"";
+    q("#logoFolderNote").textContent=defaults.builtin_logo_folder
+      ? `로고 파일 바꾸기 → ${defaults.builtin_logo_folder}`
+      : "로고 파일 바꾸기를 누르면 앱의 Built-in Logos 폴더가 먼저 열립니다.";
+    q("#cssPath").value=j.default_css;
+    normalizePreset();
+    applyLayoutGeometry(preset.header.layout||"horizontal",false);
+    render();
+    clearSelection();
+    status("준비 완료. Body PDF가 없으면 2페이지 Dummy Document로 바로 설계·출력할 수 있습니다.");
+  }catch(e){status(e.message,"err",true);}
+})();
+</script>
+</body>
+</html>

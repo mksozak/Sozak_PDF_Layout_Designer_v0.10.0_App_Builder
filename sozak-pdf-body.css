@@ -1,0 +1,28 @@
+/*
+  Sozak PDF Body Layout v0.4
+  Header/footer graphics are stamped after Typora PDF export.
+*/
+:root {
+  --pdf-page-left: 20mm;
+  --pdf-page-right: 20mm;
+  --pdf-page-bottom: 24mm;
+  --pdf-first-top: 68mm;
+  --pdf-other-top: 18mm;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin-top: var(--pdf-other-top);
+    margin-right: var(--pdf-page-right);
+    margin-bottom: var(--pdf-page-bottom);
+    margin-left: var(--pdf-page-left);
+  }
+
+  @page :first {
+    margin-top: var(--pdf-first-top);
+    margin-right: var(--pdf-page-right);
+    margin-bottom: var(--pdf-page-bottom);
+    margin-left: var(--pdf-page-left);
+  }
+}

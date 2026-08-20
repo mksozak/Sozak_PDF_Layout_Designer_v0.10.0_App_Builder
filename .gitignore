@@ -1,0 +1,51 @@
+# macOS
+.DS_Store
+Icon
+.AppleDouble
+.LSOverride
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local virtual environments
+.build-venv/
+.venv/
+venv/
+env/
+ENV/
+
+# PyInstaller and local build output
+build/
+dist/
+.sozak-app-icon.iconset/
+*.app
+*.dmg
+*.zip
+
+# Generated demo/export files
+demo-*.pdf
+SHA256SUMS.txt
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.secret
+*.secrets
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*~
+
+# Editor settings
+.idea/
+.vscode/
